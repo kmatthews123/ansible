@@ -1,0 +1,45 @@
+vmhosts:
+  hosts:
+    my_host_01:
+      ansible_host: 192.168.0.1
+      ansible_user: borg
+      iscsi_targets: [{'target': 'iqn.2005-10.org.freenas.ctl:iscsi1', 'mount_point': '/mnt/iscsi1'}, {'target': 'iqn.2005-10.org.freenas.ctl:iscsi2', 'mount_point': '/mnt/iscsi2'}]
+      drives: [{'drive': '/dev/sdb'},{'drive': '/dev/sdc'}]
+      hostname: ubuntu-server1
+    my_host_02:
+      ansible_host: 192.168.0.2
+      ansible_user: borg
+      iscsi_targets: [{'target': 'iqn.2005-10.org.freenas.ctl:iscsi3', 'mount_point': '/mnt/iscsi3'}]
+      drives: [{'drive': '/dev/sdb'}]
+      hostname: ubuntu-server2
+realhosts:
+  hosts:
+    my_host_03:
+      ansible_host: 192.168.0.3
+      ansible_user: borg
+      iscsi_targets: [{'target': 'iqn.2005-10.org.freenas.ctl:iscsi4', 'mount_point': '/mnt/iscsi4'}]
+      drives: [{'drive': '/dev/sda'},{'drive': '/dev/sdb'},{'drive': '/dev/sdc'}]
+      hostname: ubuntu-server3
+    my_host_04:
+      ansible_host: 192.168.0.4
+      ansible_user: borg
+      iscsi_targets: [{'target': 'iqn.2005-10.org.freenas.ctl:iscsi5', 'mount_point': '/mnt/iscsi5'}]
+      drives: [{'drive': '/dev/sda'}]
+      hostname: ubuntu-server4
+    my_host_05:
+      ansible_host: 192.168.0.5
+      ansible_user: borg
+      iscsi_targets: [{'target': 'iqn.2005-10.org.freenas.ctl:iscsi6', 'mount_point': '/mnt/iscsi6'}]
+      drives: [{'drive': '/dev/sda'}]
+      hostname: ubuntu-server5
+selfhost:
+  hosts:
+    my_host_06:
+      ansible_host: localhost
+      ansible_user: borg
+      hostname: ubuntu-server6
+
+labhosts:
+  children:
+    vmhosts:
+    realhosts:

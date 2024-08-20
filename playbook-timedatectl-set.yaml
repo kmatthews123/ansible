@@ -1,0 +1,26 @@
+---
+- name: Ensure NTP time for all show_nodes
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Install NTP daemon
+      ansible.builtin.apt:
+        pkg:
+          - ntp
+        update_cache: true
+
+    - name: Restart ntp service
+      ansible.builtin.service:
+        name: ntp
+        state: started
+        enabled: true
+
+    - name: Set utc timezone for all hosts
+      community.general.timezone:
+        name: UTC
+
+    - name: Check time
+      ansible.builtin.command: timedatectl status
+      register: check_time
+      changed_when: check_time.rc != 0

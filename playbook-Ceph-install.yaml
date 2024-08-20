@@ -1,0 +1,79 @@
+---
+- name: Install cephadm finaly
+  hosts: my_host_03
+  become_user: root
+  become: true
+  vars:
+    ceph_release: reef
+    target_hosts:
+      - 192.168.0.1
+      - 192.168.0.2
+      - 192.168.0.4
+      - 192.168.0.5
+
+  tasks:
+    - name: Pull down cephadm install and set executable
+      ansible.builtin.get_url:
+        url: https://download.ceph.com/rpm-{{ ceph_release }}/el9/noarch/cephadm
+        dest: /root
+        mode: '0740'
+
+    - name: Add ceph to repos
+      ansible.builtin.command: /root/cephadm add-repo --release reef
+      register: addcephtorepos # <- Registers the command output.
+      changed_when: addcephtorepos.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Install Cephadm
+      ansible.builtin.command: /root/cephadm install
+      register: installcephadm # <- Registers the command output.
+      changed_when: installcephadm.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Bootstrap the cluster
+      ansible.builtin.command: cephadm bootstrap --mon-ip {{ ansible_host }}
+      register: bootstrap_output # <- Registers the command output.
+      changed_when: bootstrap_output.rc != 0 # <- Uses the return code to define when the task has changed.
+      ignore_errors: true
+      # only run this command once. this is fragile and is a good reason to not do this in this way!
+      # this command cannot run and will cause the playbook to fail.
+
+    - name: Copy ceph certs to all other devices
+      ansible.builtin.command: ssh-copy-id -f -i /etc/ceph/ceph.pub root@{{ item }}
+      with_items: "{{ target_hosts }}"
+      register: ceph_certs # <- Registers the command output.
+      changed_when: ceph_certs.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Install ceph common
+      ansible.builtin.command: cephadm install ceph-common
+      register: ceph_common
+      changed_when: ceph_common.rc != 0
+
+    - name: Install setup _admin labels
+      ansible.builtin.command: ceph orch host add {{ hostvars['my_host_01'].hostname }} {{ hostvars['my_host_01'].ansible_host }} --labels _admin
+      register: ceph_labels_admin1 # <- Registers the command output.
+      changed_when: ceph_labels_admin1.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Install setup additional mon label
+      ansible.builtin.command: ceph orch host add {{ hostvars['my_host_02'].hostname }} {{ hostvars['my_host_02'].ansible_host }} --labels mon
+      register: ceph_labels_admin2 # <- Registers the command output.
+      changed_when: ceph_labels_admin2.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Install setup host 4
+      ansible.builtin.command: ceph orch host add {{ hostvars['my_host_04'].hostname }} {{ hostvars['my_host_04'].ansible_host }} --labels mon
+      register: ceph_labels_admin4 # <- Registers the command output.
+      changed_when: ceph_labels_admin4.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Install setup host 5
+      ansible.builtin.command: ceph orch host add {{ hostvars['my_host_05'].hostname }} {{ hostvars['my_host_05'].ansible_host }} --labels mon
+      register: ceph_labels_admin5 # <- Registers the command output.
+      changed_when: ceph_labels_admin5.rc != 0 # <- Uses the return code to define when the task has changed.
+
+
+    - name: Install setup _admin labels
+      ansible.builtin.command: ceph orch apply osd --all-available-devices
+      register: ceph_labels_osd # <- Registers the command output.
+      changed_when: ceph_labels_osd.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Sync time
+      ansible.builtin.command: ceph time-sync-status
+      register: ceph_time
+      changed_when: ceph_time.rc != 0

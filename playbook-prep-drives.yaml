@@ -1,0 +1,17 @@
+---
+- name: Prep Drives
+  hosts: labhosts
+  become: true
+
+  tasks:
+    - name: Zap disks
+      ansible.builtin.command: sudo sgdisk --zap-all "{{ item.drive }}"
+      loop: "{{ drives }}"
+      register: my_output # <- Registers the command output.
+      changed_when: my_output.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Wipe File systems
+      ansible.builtin.command: sudo wipefs --all "{{ item.drive }}"
+      loop: "{{ drives }}"
+      register: my_output # <- Registers the command output.
+      changed_when: my_output.rc != 0 # <- Uses the return code to define when the task has changed.

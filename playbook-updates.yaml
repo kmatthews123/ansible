@@ -1,0 +1,16 @@
+---
+- name: Patching and Updating Linux Systems
+  hosts: all
+  become: true
+  vars_files: ./vault
+  tasks:
+
+    # - name: Print all facts like all of em. recomend dumping into a log file if using this
+    #   ansible.builtin.debug:
+    #     var: ansible_facts
+
+    - name: Update Debian-based Systems
+      when: ansible_os_family == 'Debian'
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist

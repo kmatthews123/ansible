@@ -1,0 +1,25 @@
+borg_passwords:
+# borg-ubuntu-server1
+  - "a-more-secure-password-0123456789"
+# borg-ubuntu-server2
+  - "a-more-secure-password-9012345678"
+# borg-ubuntu-server3
+  - "a-more-secure-password-8901234567"
+# borg-ubuntu-server4
+  - "a-more-secure-password-7890123456"
+# borg-ubuntu-server5
+  - "a-more-secure-password-6789012345"
+# borg-ubuntu-server6
+  - "a-more-secure-password-5678901234"
+root_passwords:
+# root-ubuntu-server1
+  - "a-more-secure-password-4567890123"
+# root-ubuntu-server2
+  - "a-more-secure-password-3456789012"
+# root-ubuntu-server3
+  - "a-more-secure-password-2345678901"
+# root-ubuntu-server4
+  - "a-more-secure-password-1234567890"
+# root-ubuntu-server5
+  - "a-more-secure-password-1234567890"
+

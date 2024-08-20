@@ -1,0 +1,88 @@
+#!/bin/bash
+# this script is used to generate passwords
+# 1. password generated will be used to encrypt the ansible vault
+# 2. ceates a gpg symetric key password 
+# 3. group of passwords for the ceph hosts new user borg (6 hosts)
+# 4. group of passwords for root on ceph hosts (5 hosts (no need for root access to ansible host))
+# 5. that file will then be encrypted by gpg (ansible-vault doesnt seem to be happy about encrypting it programaticay so far)
+# 6. that file will use the password generated in step 2
+# 7. once encrypted it will ship the encrypted file over to the ansible controller for this lab
+
+now=$(date +"%F-%R")
+
+# 1. create vault password
+echo "ansible vault password"
+op item create \
+    --category password \
+    --title Ansible-Vault-Passphrase \
+    --vault Testing \
+    --generate-password='letters,digits,symbols,32' \
+    --tags cephlab,vault
+
+# 2. create gpg password
+echo "GPG Symetric Key Generation"
+op item create \
+    --category password \
+    --title GPG-Symetric-Key \
+    --vault Testing \
+    --generate-password='letters,digits,symbols,64' \
+    --tags cephlab,gpg
+
+#formating output file
+echo "borg_passwords:" >> output.file
+
+# 3. group of passwords for borg users
+# updated to 6 passwords, one will be for borg user on ansible controller so I can run updates against it lmao
+# got rid of reveal option since password agregation will be done diffrently
+for i in {1..6}
+do
+echo "password generated: $i"
+op item create \
+    --category login \
+    --title borg-ubuntu-server$i \
+    --vault Testing \
+    --url "192.168.0.0$i" \
+    --generate-password='letters,digits,symbols,32' \
+    --tags cephlab,borg \
+    'username=borg' \
+
+# formatting output file
+echo "# borg-ubuntu-server$i" >> output.file
+op item get --vault testing --fields label=password --reveal borg-ubuntu-server$i >> output.file
+
+done
+
+# formating output file
+echo "root_passwords:" >> output.file
+
+# 4. group of passwords for root user
+for i in {1..5}
+do
+echo "password generated: $i"
+op item create \
+    --category login \
+    --title root-ubuntu-server$i \
+    --vault Testing \
+    --url "192.168.0.0$i" \
+    --generate-password='letters,digits,symbols,32' \
+    --tags cephlab,root \
+    'username=root' \
+
+# formating output file
+echo "# root-ubuntu-server$i" >> output.file
+op item get --vault testing --fields label=password --reveal root-ubuntu-server$i >> output.file
+
+done
+
+
+# 5. encrypting output file
+op item get --vault testing --fields label=password --reveal GPG-Symetric-Key \
+| xargs -I{} gpg --batch -c --passphrase {} --symmetric --output output_$now.file.gpg output.file
+
+# 6. delete unecrpyted output file 
+rm output.file
+
+# 7. copy over encrypted file to the ansible host
+scp ./output_$now.file.gpg keithm@192.168.0.6:/home/keithm/ceph_lab/secure_$now.gpg
+# this is working now.
+# theres some stuff I could do to better format for the far side but I can do that manualy for now. the format will be muuuuuuch more useable

@@ -1,0 +1,34 @@
+---
+- name: Iscsi install
+  hosts: labhosts
+  become: true
+  vars:
+    iscsi_portal: 192.168.1.2 #this is the machine hosting all the iscsi drives (ie your NAS)
+
+  tasks:
+    - name: Install iscsiadm
+      ansible.builtin.apt:
+        pkg:
+          - open-iscsi
+        state: present
+        update_cache: true
+
+    - name: Discover iSCSI targets
+      community.general.open_iscsi:
+        show_nodes: true
+        portal: "{{ iscsi_portal }}"
+        discover: true
+
+    - name: Create mount points
+      ansible.builtin.file:
+        path: "{{ item.mount_point }}"
+        state: directory
+      loop: "{{ iscsi_targets }}"
+
+    - name: Connect to iSCSI targets
+      community.general.open_iscsi:
+        portal: "{{ iscsi_portal }}"
+        target: "{{ item.target }}"
+        login: true
+        auto_portal_startup: true
+      loop: "{{ iscsi_targets }}"

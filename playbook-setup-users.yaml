@@ -1,0 +1,113 @@
+---
+- name: Create borg user
+  hosts: all
+  become: true
+  vars_files:
+   - ~/ceph_lab/vault.yml
+  strategy: free
+
+  tasks:
+   - name: Set user password from vault based on host index for new user borg
+     ansible.builtin.user:
+        name: borg
+        shell: /bin/bash
+        groups: sudo, docker
+        password: >-
+          {{ lookup('vars', 'borg_passwords')[groups['all'].index(inventory_hostname)] | password_hash('sha512') }}
+        append: true
+     no_log: true
+
+   - name: Add borg user to sudoers with no password
+     ansible.builtin.copy:
+       src: ./borgaddin
+       dest: /etc/sudoers.d/
+       owner: root
+       group: root
+       mode: "0600"
+
+   - name: Turn off cloud init
+     ansible.builtin.file:
+       path: /etc/cloud/cloud-init.disabled
+       mode: "0600"
+       state: touch
+
+   - name: Delete cloud init file in sshd sshd_config.d
+     ansible.builtin.file:
+       path: /etc/ssh/sshd_config.d/50-cloud-init.conf
+       state: absent
+
+   - name: Setup replacement /etc/ssh/sshd_config.d/
+     ansible.builtin.copy:
+       src: ./ansible-sshd.conf
+       dest: /etc/ssh/sshd_config.d/
+       owner: root
+       group: root
+       mode: "0600"
+
+   - name: Restart cloud-init
+     ansible.builtin.service:
+       name: cloud-init
+       state: restarted
+
+   - name: Restart ssh
+     ansible.builtin.service:
+       name: sshd
+       state: restarted
+
+   - name: Create folder for ssh keys
+     ansible.builtin.file:
+       path: ~borg/.ssh
+       state: directory
+       owner: borg
+       group: borg
+       mode: "0700"
+
+   - name: Upload SSH key
+     ansible.posix.authorized_key:
+       user: borg
+       key: "{{ lookup('file', './.ssh/id_ed25519.pub') }}"
+       state: present
+
+- name: Create root user
+  hosts: labhosts
+  become: true
+  vars_files:
+   - ~/ceph_lab/vault2.yml
+  strategy: free
+
+  tasks:
+     - name: Set root password from vault based on host index
+       ansible.builtin.user:
+         name: root
+         update_password: always
+         password: >-
+           {{ lookup('vars', 'root_passwords')[groups['labhosts'].index(inventory_hostname)] | password_hash('sha512') }}
+
+- name: Provision root user ssh key from manager node (zima board) and copy it to ansible host
+  hosts: my_host_03
+  become: true
+
+  tasks:
+     - name: Setup ssh key for ceph lab manager
+       ansible.builtin.user:
+         name: root
+         generate_ssh_key: true
+         ssh_key_bits: 2048
+         ssh_key_file: /root/.ssh/id_rsa
+
+     - name: Copy pub file from root user to ansible host
+       ansible.builtin.fetch:
+         src: /root/.ssh/id_rsa.pub
+         dest: ./
+         flat: true
+
+- name: Provision root user pub key from manager node to all other lab hosts
+  hosts: labhosts, !my_host_03
+  become: true
+
+  tasks:
+     - name: Upload SSH key
+       ansible.posix.authorized_key:
+         user: root
+         key: "{{ lookup('file', './ceph_lab/id_rsa.pub') }}"
+         state: present

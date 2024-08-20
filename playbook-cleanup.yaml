@@ -1,0 +1,27 @@
+---
+- name: Remove testuser and keithm
+  hosts: labhosts
+  become: true
+
+  tasks:
+    - name: Remove created user KEITHM
+      ansible.builtin.user:
+        name: keithm
+        state: absent
+        remove: true
+
+    # - name: Remove created user testuser
+    #   ansible.builtin.user:
+    #     name: testuser
+    #     state: absent
+    #     remove: true
+
+    # - name: Remove ssh keys from host3
+    #   hosts: my_host_03
+    #   become: true
+
+    #   tasks:
+    #     - name: Delete cloud init file in sshd sshd_config.d
+    #       ansible.builtin.file:
+    #         path: /root/.ssh/*
+    #         state: absent

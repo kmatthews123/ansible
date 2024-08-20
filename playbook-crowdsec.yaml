@@ -1,0 +1,39 @@
+---
+- name: Install crowdsec packages
+  hosts: vmhosts, my_host_03, localhost
+  become: true
+
+  tasks:
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+
+    - name: Pull down crowdsec stuff for borg
+      ansible.builtin.command: https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash
+      register: my_output # <- Registers the command output.
+      changed_when: my_output.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Install crowdsec
+      ansible.builtin.apt:
+        name: crowdsec
+        update_cache: true
+
+    - name: Install crowdsec-firewall-bouncer-iptables
+      ansible.builtin.apt:
+        name: crowdsec-firewall-bouncer-iptables
+        update_cache: true
+
+    - name: Restart crowdsec to get firewall bouncer working
+      ansible.builtin.service:
+        name: crowdsec
+        state: restarted
+
+    # - name: Install whitelist-good-actors collection
+    #   ansible.builtin.shell: cscli collections install crowdsecurity/whitelist-good-actors
+    #   when: crowdsec_whitelist_good_actors | bool
+    - name: Enrole nodes in network
+      ansible.builtin.command: sudo cscli console enroll -n {{ inventory_hostname }} -e context # your crowdsec key here
+      register: my_output # <- Registers the command output.
+      changed_when: my_output.rc != 0 # <- Uses the return code to define when the task has changed.
