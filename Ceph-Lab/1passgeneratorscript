@@ -41,7 +41,7 @@ op item create \
     --category login \
     --title borg-ubuntu-server$i \
     --vault Testing \
-    --url "192.168.0.0$i" \
+    --url "192.168.0.$i" \
     --generate-password='letters,digits,symbols,32' \
     --tags cephlab,borg \
     'username=borg' \
@@ -63,7 +63,7 @@ op item create \
     --category login \
     --title root-ubuntu-server$i \
     --vault Testing \
-    --url "192.168.0.0$i" \
+    --url "192.168.0.$i" \
     --generate-password='letters,digits,symbols,32' \
     --tags cephlab,root \
     'username=root' \
