@@ -1,0 +1,25 @@
+---
+- name: Allow SSH user to execute commands without password
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Add NOPASSWD entry to sudoers file
+      lineinfile:
+        dest: /etc/sudoers
+        line: "{{ ansible_ssh_user }} ALL=(ALL) NOPASSWD: ALL"
+        validate: 'visudo -cf %s'
+        state: present
+  vars_files:
+    - passwords.yml
+
+- name: Install htop Package
+  hosts: servers
+  become: yes
+  become_method: sudo
+  tasks:
+    - name: Install htop Package
+      package:
+        name: htop
+        state: present
+  vars_files:
+    - passwords.yml
