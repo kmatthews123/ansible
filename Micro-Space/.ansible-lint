@@ -1,0 +1,7 @@
+# .ansible-lint
+
+mock_modules:
+# path problems (idk how to fix them) mean that anything aside from ansible builtin commands cause syntax errors. this overrides those errors
+  - community.routeros.command
+  - community.routeros.facts
+  - community.general.discord

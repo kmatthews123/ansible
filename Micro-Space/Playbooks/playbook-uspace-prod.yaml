@@ -1,0 +1,170 @@
+---
+- name: Patching and Updating Linux Systems
+  hosts: uspaceprod
+  become: true
+  vars:
+    log_timestamp_file: "{{ lookup('pipe', 'date +%Y-%b-%d_%H%M%S') }}"
+    log_timestamp_folder: "{{ lookup('pipe', 'date +%Y-%b-%d') }}"
+
+  tasks:
+    - name: Upgrade Debian-based Systems
+      when: ansible_pkg_mgr == 'apt'
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+      register: apt_output
+
+    - name: Check if reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Parse apt-get output and if reboot is required
+      ansible.builtin.set_fact:
+        upgraded_packages: "{{ apt_output.stdout | regex_search('(\\d+) upgraded', '\\1') | default('0') }}"
+        newly_installed_packages: "{{ apt_output.stdout | regex_search('(\\d+) newly installed', '\\1') | default('0') }}"
+        removed_packages: "{{ apt_output.stdout | regex_search('(\\d+) to remove', '\\1') | default('0') }}"
+        held_packages: "{{ apt_output.stdout | regex_search('(\\d+) not upgraded', '\\1') | default('0') }}"
+        reboot_required: "{{ reboot_required_file.stat.exists }}"
+
+    - name: Creates directory for todays update log files
+      delegate_to: localhost
+      ansible.builtin.file:
+        path: /home/borg/mass_update_uspace/logs/prod/{{ log_timestamp_folder }}
+        state: directory
+        mode: '0777'
+
+    - name: Save update and upgrade results to log file for review
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: |
+          Host: {{ inventory_hostname }}
+          Upgraded Packages: {{ upgraded_packages }}
+          Newly Installed Packages: {{ newly_installed_packages }}
+          Removed Packages: {{ removed_packages }}
+          Held Packages: {{ held_packages }}
+          Needs Reboot: {{ reboot_required | bool | ternary('Yes', 'No') }}
+        dest: "/home/borg/mass_update_uspace/logs/prod/{{ log_timestamp_folder }}/upgrade_log_{{ inventory_hostname }}.log"
+        mode: '0666'
+
+    - name: Save update and upgrade results to log file for review but big and ugly
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: "{{ inventory_hostname }} : {{ apt_output.stdout }}"
+        dest: "/home/borg/mass_update_uspace/logs/prod/{{ log_timestamp_folder }}/upgrade_log_{{ inventory_hostname }}_{{ log_timestamp_file }}.vlog"
+        mode: '0666'
+
+- name: Update network storage devices
+  hosts: uspaceprodnas
+  become: true
+  vars:
+    log_timestamp_file: "{{ lookup('pipe', 'date +%Y-%b-%d_%H%M%S') }}"
+    log_timestamp_folder: "{{ lookup('pipe', 'date +%Y-%b-%d') }}"
+
+  tasks:
+
+    - name: Check OS and OMV version info
+      ansible.builtin.command: omv-sysinfo -c 00
+      register: omv_version # <- Registers the command output.
+      changed_when: omv_version.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Upgrade the NAS
+      ansible.builtin.command: omv-upgrade
+      register: nas_upgrade # <- Registers the command output.
+      changed_when: nas_upgrade.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Apply changes to NAS
+      ansible.builtin.command: omv-salt deploy run --append-dirty
+      ignore_errors: true
+      register: apply_changes_nas # <- Registers the command output.
+      changed_when: apply_changes_nas.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Check if reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required_nas
+
+    - name: Parse apt-get output and if reboot is required
+      ansible.builtin.set_fact:
+        upgraded_packages: "{{ nas_upgrade.stdout | regex_search('(\\d+) upgraded', '\\1') | default('0') }}"
+        newly_installed_packages: "{{ nas_upgrade.stdout | regex_search('(\\d+) newly installed', '\\1') | default('0') }}"
+        removed_packages: "{{ nas_upgrade.stdout | regex_search('(\\d+) to remove', '\\1') | default('0') }}"
+        held_packages: "{{ nas_upgrade.stdout | regex_search('(\\d+) not upgraded', '\\1') | default('0') }}"
+        reboot_required: "{{ reboot_required_nas.stat.exists }}"
+
+    - name: Save update and upgrade results to log file for review
+      delegate_to: localhost
+      # become: false
+      ansible.builtin.copy:
+        content: |
+          Host: {{ inventory_hostname }}
+          Upgraded Packages: {{ upgraded_packages }}
+          Newly Installed Packages: {{ newly_installed_packages }}
+          Removed Packages: {{ removed_packages }}
+          Held Packages: {{ held_packages }}
+          Needs Reboot: {{ reboot_required | bool | ternary('Yes', 'No') }}
+        dest: "/home/borg/mass_update_uspace/logs/prod/{{ log_timestamp_folder }}/upgrade_log_{{ inventory_hostname }}.log"
+        mode: '0666'
+
+    - name: Create verbose log of standard out from nas commands
+      delegate_to: localhost
+      # become: false
+      ansible.builtin.copy:
+        content: "{{ inventory_hostname }} : {{ omv_version.stdout }} : {{ nas_upgrade.stdout }} : {{ reboot_required_nas }}"
+        dest: "/home/borg/mass_update_uspace/logs/prod/{{ log_timestamp_folder }}/upgrade_log_{{ inventory_hostname }}_{{ log_timestamp_file }}.vlog"
+        mode: '0666'
+
+
+- name: Combine log files with custom headers
+  hosts: localhost
+  gather_facts: false
+  vars:
+    log_timestamp_folder: "{{ lookup('pipe', 'date +%Y-%b-%d') }}"
+
+  tasks:
+
+    - name: Find individual log files
+      ansible.builtin.find:
+        paths: /home/borg/mass_update_uspace/logs/prod/{{ log_timestamp_folder }}
+        patterns: "*.log"
+      register: log_files
+
+    - name: Combine log files into a single file with custom headers
+      ansible.builtin.shell: |
+        for file in {{ log_files.files | map(attribute='path') | join(' ') }}
+        do
+          cat $file >> /home/borg/mass_update_uspace/logs/prod/{{ log_timestamp_folder }}/combined_log_{{ log_timestamp_folder }}
+          echo "" >> /home/borg/mass_update_uspace/logs/prod/{{ log_timestamp_folder }}/combined_log_{{ log_timestamp_folder }}
+        done
+      when: log_files.matched > 0
+      register: combinelogs # <- Registers the command output.
+      changed_when: combinelogs.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Read the combined log file
+      ansible.builtin.slurp:
+        src: /home/borg/mass_update_uspace/logs/prod/{{ log_timestamp_folder }}/combined_log_{{ log_timestamp_folder }}
+      register: log_file_content
+
+    - name: Convert log file content to a string
+      ansible.builtin.set_fact:
+        log_content: "{{ log_file_content.content | b64decode }}"
+
+    - name: Send a message to the infrastructure alerts channel in accountablibuddys server
+      delegate_to: localhost
+      community.general.discord:
+        webhook_id: "your-webhook-id-here"
+        webhook_token: "your-token-here"
+        embeds:
+          - title: "Upgrade prod {{ log_timestamp_folder }}"
+            description: "Weekly Update has run"
+            footer:
+              text: "Author: Ansible"
+            fields:
+              - name: "for more details inspect logs"
+                value: "{{ log_content | truncate(1000, end='... (truncated)') | regex_replace('\\n', '\\n') }}"
+
+    - name: Cleanup unnessicary log files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ log_files.files }}"
