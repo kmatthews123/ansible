@@ -1,0 +1,53 @@
+uspacedev:
+  hosts:
+    dev-compute-1:
+      ansible_host: 192.168.0.5
+
+    dev-compute-2:
+      ansible_host: 192.168.0.6
+
+    dev-gpu-compute-1:
+      ansible_host: 192.168.0.7
+    
+    dev-jumpbox:
+      ansible_host: 192.168.0.8
+
+  vars:
+    ansible_user: borg
+
+# Not yet used
+# uspacedevnas:
+#   hosts:
+#     dev-nas-1:
+#       ansible_host: 192.168.0.9
+#       ansible_user: borg
+
+uspaceprod:
+  hosts:
+    prod-playbook-runner:
+      ansible_connection: local
+      ansible_host: localhost
+
+    prod-compute-1:
+      ansible_host: 192.168.1.5
+  
+  vars:
+    ansible_user: borg
+
+uspaceprodnas:
+  hosts:
+    prod-nas-1:
+      ansible_host: 192.168.1.6
+      ansible_user: borg
+
+network:
+  hosts:
+    mikrotik1:
+      ansible_host: 192.168.1.1
+      ansible_port: 1521
+
+  vars:
+    ansible_user: borg
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: community.routeros.routeros
+    
