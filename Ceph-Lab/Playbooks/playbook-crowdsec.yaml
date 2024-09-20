@@ -11,7 +11,7 @@
         upgrade: dist
 
     - name: Pull down crowdsec stuff for borg
-      ansible.builtin.command: https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash
+      ansible.builtin.shell: https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash
       register: my_output # <- Registers the command output.
       changed_when: my_output.rc != 0 # <- Uses the return code to define when the task has changed.
 
