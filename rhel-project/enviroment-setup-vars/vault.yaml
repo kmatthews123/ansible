@@ -1,0 +1,20 @@
+server_passwords:
+  rhw:
+    admin: Good-Password@2
+    borg: Good-Password!1
+  rhs1:
+    admin: Good-Password@2
+    borg: Good-Password!1
+  rhs2:
+    admin: Good-Password@2
+    borg: Good-Password!1
+  fds:
+    admin: Good-Password@2
+    borg: Good-Password!1
+  fdw:
+    admin: Good-Password@2
+    borg: Good-Password!1
+  cow:
+    admin: Good-Password@2
+    borg: Good-Password!1
+# This is an example. normaly this would be encrypted with ansible vault

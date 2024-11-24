@@ -1,0 +1,11 @@
+---
+- name: ansible ping for hosts with passwords
+  hosts: all
+  become: true
+  vars_files:
+    - vault.yaml
+    - vars.yaml
+
+  tasks:
+    - name: run ping
+      ansible.builtin.ping:

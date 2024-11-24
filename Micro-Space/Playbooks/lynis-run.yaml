@@ -1,0 +1,32 @@
+- name: install, run and export lynis
+  hosts: all
+  become: true
+  # strategy: free
+  tasks:
+    
+    - name: install lynis
+      ansible.builtin.apt:
+        package:
+          - lynis
+          - python3-full
+          - pipx
+          - pip
+          - virtualenv
+   
+    - name: install pipx stuff
+      community.general.pipx:
+        name: ansi2html
+    
+    - name: install with pip3?
+      ansible.builtin.pip:
+        name: ansi2html
+        extra_args: --break-system-packages
+    
+    - name: run lynis, save output to file
+      ansible.builtin.shell: sudo lynis audit system | python3 -c "import sys; from ansi2html import Ansi2HTMLConverter; print(Ansi2HTMLConverter().convert(''.join(sys.stdin.readlines())))" > /home/borg/lynis_report_{{ inventory_hostname }}.html
+
+    - name: move remote lynis log onto crash for review
+      ansible.builtin.fetch:
+        src: /home/borg/lynis_report_{{ inventory_hostname }}.html
+        dest: /home/borg/lynis_reports/
+        flat: true

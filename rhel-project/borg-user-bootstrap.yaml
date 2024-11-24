@@ -1,0 +1,69 @@
+---
+- name: Create borg user
+  hosts: all
+  become: true
+  vars_files:
+   - ~/ceph_lab/vault.yml
+  strategy: free
+
+  tasks:
+   - name: Set user password from vault based on host index for new user borg
+     ansible.builtin.user:
+        name: borg
+        shell: /bin/bash
+        groups: sudo, docker
+        password: >-
+          {{ lookup('vars', 'borg_passwords')[groups['all'].index(inventory_hostname)] | password_hash('sha512') }}
+        append: true
+     no_log: true
+
+   - name: Add borg user to sudoers with no password
+     ansible.builtin.copy:
+       src: ./borgaddin
+       dest: /etc/sudoers.d/
+       owner: root
+       group: root
+       mode: "0600"
+
+   - name: Turn off cloud init
+     ansible.builtin.file:
+       path: /etc/cloud/cloud-init.disabled
+       mode: "0600"
+       state: touch
+
+   - name: Delete cloud init file in sshd sshd_config.d
+     ansible.builtin.file:
+       path: /etc/ssh/sshd_config.d/50-cloud-init.conf
+       state: absent
+
+   - name: Setup replacement /etc/ssh/sshd_config.d/
+     ansible.builtin.copy:
+       src: ./ansible-sshd.conf
+       dest: /etc/ssh/sshd_config.d/
+       owner: root
+       group: root
+       mode: "0600"
+
+   - name: Restart cloud-init
+     ansible.builtin.service:
+       name: cloud-init
+       state: restarted
+
+   - name: Restart ssh
+     ansible.builtin.service:
+       name: sshd
+       state: restarted
+
+   - name: Create folder for ssh keys
+     ansible.builtin.file:
+       path: ~borg/.ssh
+       state: directory
+       owner: borg
+       group: borg
+       mode: "0700"
+
+   - name: Upload SSH key
+     ansible.posix.authorized_key:
+       user: borg
+       key: "{{ lookup('file', './.ssh/id_ed25519.pub') }}"
+       state: present

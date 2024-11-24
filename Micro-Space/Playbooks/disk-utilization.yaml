@@ -1,0 +1,56 @@
+- name: install, run and export disk utilization
+  hosts: all
+  become: true
+  vars:
+    log_timestamp_folder: "{{ lookup('pipe', 'date +%Y-%b-%d') }}"
+  # strategy: free
+  tasks:
+
+    - name: install python packages
+      ansible.builtin.apt:
+        package:
+          - python3-full
+          - pipx
+          - pip
+          - virtualenv
+          - pydf
+
+    - name: install pipx package
+      community.general.pipx:
+        name: ansi2html
+
+    - name: run df and register output
+      #ansible.builtin.command: df -hT --exclude-type=tmpfs --exclude-type=efivarfs --exclude-type=devtmpfs --exclude-type=overlay
+      ansible.builtin.shell: pydf -h
+      register: output
+
+    - name: print output
+      ansible.builtin.debug:
+        var: output
+    
+    - name: print line break
+      ansible.builtin.shell: echo ------------------------------------------- > disks_{{ inventory_hostname }}_{{ log_timestamp_folder }}.txt
+
+    - name: create file, add name
+      ansible.builtin.shell: echo --- {{ inventory_hostname }} --- >> disks_{{ inventory_hostname }}_{{ log_timestamp_folder }}.txt
+
+#    - name: run df, save output to file
+#      ansible.builtin.shell: df -hT --exclude-type=tmpfs --exclude-type=efivarfs --exclude-type=devtmpfs --exclude-type=overlay >> disks_{{ inventory_hostname }}_{{ log_timestamp_folder }}.txt
+    - name: pydf
+      ansible.builtin.shell: pydf -h >> disks_{{ inventory_hostname }}_{{ log_timestamp_folder }}.txt
+      
+    #  | python3 -c "import sys; from ansi2html import Ansi2HTMLConverter; print(Ansi2HTMLConverter().convert(''.join(sys.stdin.readlines())))" > /home/borg/disks_{{ inventory_hostname }}.html
+
+    - name: move remote lynis log onto crash for review
+      ansible.builtin.fetch:
+        src: /home/borg/disks_{{ inventory_hostname }}_{{ log_timestamp_folder }}.txt
+        dest: /home/borg/disk_utilization/
+        flat: true
+
+    - name: create txt file
+      ansible.builtin.shell: cat /home/borg/disk_utilization/*.txt > /home/borg/disk_utilization/combined_logs.txt
+      delegate_to: localhost
+
+    - name: create html file
+      ansible.builtin.shell: cat /home/borg/disk_utilization/combined_logs.txt | python3 -c "import sys; from ansi2html import Ansi2HTMLConverter; print(Ansi2HTMLConverter().convert(''.join(sys.stdin.readlines())))" > /home/borg/disk_utilization/combined_logs.html
+      delegate_to: localhost

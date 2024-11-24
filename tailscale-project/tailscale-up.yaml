@@ -1,0 +1,9 @@
+---
+- name: tailscale up and send activation email
+  hosts: guests
+  become: true
+  
+  tasks:
+    - name: run tailscle up to see what happens
+      ansible.builtin.command: "tailscale up --auth-key={{tskey_auth}} --advertise-routes 192.168.0.0/24"
+      register: userloginlink

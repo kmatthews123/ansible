@@ -1,0 +1,22 @@
+---
+- name: Reboot hosts that have an existing reboot required file
+  hosts: all,!localhost
+  serial: 1
+  become: true
+
+  tasks:
+  - name: Check if reboot is required
+    ansible.builtin.stat:
+      path: /var/run/reboot-required
+    register: reboot_required_file
+
+  - name: Reboot systems to apply kernel updates when requred
+    ansible.builtin.reboot:
+    when: reboot_required_file.stat.exists == true
+    register: result
+
+# This reboot timer is to maintain some level of high avaliblity accrost services
+  - name: After reboot completes, pause for 1 minute
+    ansible.builtin.pause:
+      seconds: 60
+    when: result is changed

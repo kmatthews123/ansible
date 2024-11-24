@@ -1,0 +1,3 @@
+ansible_password: "{{ server_passwords[server_id].admin }}"
+ansible_become_password: "{{ server_passwords[server_id].admin }}"
+borg_new_password: "{{ server_passwords[server_id].borg }}"

@@ -1,0 +1,17 @@
+### uspace stuff
+#
+new_guests:
+  hosts:
+    # tailscale_node1:
+    #   ansible_host: tailscale-node1.local
+            
+  vars:
+    ansible_user: administrator
+
+guests:
+  hosts:
+    tailscale_node1:
+      ansible_host: tailscale-node1.local
+
+  vars:
+    ansible_user: administrator

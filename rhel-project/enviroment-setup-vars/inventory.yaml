@@ -1,0 +1,30 @@
+rh_hosts:
+  hosts:
+    rhel9_4:
+      ansible_host: 10.0.2.10
+      server_id: rhw
+# this is actualy a rhel9 server
+    rhel8_10s1:
+      ansible_host: 10.0.2.12
+      server_id: rhs1
+
+# this is actualy a rhel9 server
+    rhel8_10s2:
+      ansible_host: 10.0.2.13
+      server_id: rhs2
+
+
+    fedora_server:
+      ansible_host: 10.0.2.14
+      server_id: fds
+
+    fedora_workstation:
+      ansible_host: 10.0.2.15
+      server_id: fdw
+
+    centos_workstation:
+      ansible_host: 10.0.2.16
+      server_id: cow
+
+  vars:
+    ansible_user: admin

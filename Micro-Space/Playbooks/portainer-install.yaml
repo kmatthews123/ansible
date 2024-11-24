@@ -1,0 +1,11 @@
+---
+- name: install portainer agent and manager on managment node
+  hosts: swarm_managers
+  become: true
+ 
+  tasks:
+    - name: manifest gets downloaded to manager
+      ansible.builtin.command: curl -L https://downloads.portainer.io/ce2-21/portainer-agent-stack.yml -o portainer-agent-stack.yml
+
+    - name: manifest gets deployed
+      ansible.builtin.command: docker stack deploy -c portainer-agent-stack.yml portainer

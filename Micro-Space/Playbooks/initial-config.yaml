@@ -1,0 +1,86 @@
+# this playbook is used to harden a fresh debian based host
+---
+- name: Updating systems
+  hosts: all
+  become: true
+  # strategy: free
+  tasks:
+
+    - name: Update Debian-based Systems
+      when: ansible_os_family == 'Debian'
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+
+    - name: Check if reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Reboot systems to apply kernel updates
+      ansible.builtin.reboot:
+      when: reboot_required_file.stat.exists == true
+
+# begin hardening systems
+
+- name: Install Crowdsec
+  hosts: all
+  become: true
+  # strategy: free
+  tasks:
+
+    - name: Crowdsec repo's are installed via script
+      ansible.builtin.shell: curl -s https://install.crowdsec.net | sh
+      register: my_output # <- Registers the command output.
+      changed_when: my_output.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Crowdsec install
+      ansible.builtin.apt:
+        package:
+          - crowdsec
+        update_cache: true
+    
+    - name: Crowdsec install
+      ansible.builtin.apt:
+        package:
+          - crowdsec-firewall-bouncer-iptables
+        update_cache: true
+
+
+    - name: Enroll in crowdsec console
+      ansible.builtin.command: sudo cscli console enroll -n {{ inventory_hostname }} -e context {{ YOUR-ENROLE-KEY }}
+      register: my_output # <- Registers the command output.
+      changed_when: my_output.rc != 0 # <- Uses the return code to define when the task has changed.
+
+    - name: Restart crowdsec post enrollment to get stuff working
+      ansible.builtin.service:
+        name: crowdsec
+        state: restarted
+
+- name: install, run and export lynis
+  hosts: all
+  become: true
+  # strategy: free
+  tasks:
+    
+    - name: install lynis
+      ansible.builtin.apt:
+        package:
+          - lynis
+          - python3-full
+          - pipx
+          - pip
+          - virtualenv
+   
+    - name: install pipx stuff
+      community.general.pipx:
+        name: ansi2html
+
+    - name: run lynis, save output to file
+      ansible.builtin.shell: sudo lynis audit system | python3 -c "import sys; from ansi2html import Ansi2HTMLConverter; print(Ansi2HTMLConverter().convert(''.join(sys.stdin.readlines())))" > /home/borg/lynis_report_{{ inventory_hostname }}.html
+
+    - name: move remote lynis log onto crash for review
+      ansible.builtin.fetch:
+        src: /home/borg/lynis_report_{{ inventory_hostname }}.html
+        dest: /home/borg/lynis_report/
+        flat: true

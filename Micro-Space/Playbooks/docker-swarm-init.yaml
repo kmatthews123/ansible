@@ -1,0 +1,30 @@
+---
+- name: initialize docker swarm manager
+  hosts: swarm_managers
+  become: true
+  
+  tasks: 
+    - name: run swarm init command
+      ansible.builtin.command: docker swarm init --advertise-addr {{ var_ipaddress }}:2377
+      ignore_errors: true
+    
+    - name: pull swarm token id
+      ansible.builtin.command: docker swarm join-token worker -q
+      register: worker_token
+
+      # the crucial step here was setting the fact from the manager as a variable on the local host. this way it can be applied in a play targeting diffrent hosts
+    - name: Set swarm_token as a fact for all nodes
+      ansible.builtin.set_fact:
+        swarm_token: "{{ worker_token.stdout }}"
+      delegate_to: localhost
+      run_once: true
+
+- name: workers join docker swarm
+  hosts: swarm_nodes
+  become: true
+  vars:
+    manager_ip: "{{ hostvars['nymph'].var_ipaddress }}"
+
+  tasks:
+    - name: run swarm join on worker nodes
+      ansible.builtin.shell: docker swarm join --token {{ hostvars['nymph'].swarm_token }} {{ manager_ip }}:2377
